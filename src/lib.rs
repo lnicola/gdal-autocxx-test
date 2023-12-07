@@ -86,8 +86,8 @@ pub extern "C" fn GDALRegisterMe() {
 
         ffi::set_driver_functions(
             &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut().unwrap()),
-            mem::transmute(&open),
-            mem::transmute(&identify),
+            mem::transmute(open as extern "C" fn(*mut GDALOpenInfo) -> *mut GDALDataset),
+            mem::transmute(identify as extern "C" fn(*mut GDALOpenInfo) -> i32),
         );
 
         let driver_manager = Pin::new_unchecked(&mut *GetGDALDriverManager());
