@@ -18,7 +18,9 @@ include_cpp! {
     generate!("GDALDriver")
     generate!("GDALDataset")
     generate!("GDAL_DCAP_RASTER")
+    generate!("GDAL_DMD_LONGNAME")
     generate!("GetGDALDriverManager")
+    generate!("GDALOpenInfo")
 
     subclass!("GDALDataset", MyDataset)
 
@@ -43,8 +45,19 @@ impl CppPeerConstructor<MyDatasetCpp> for MyDataset {
     }
 }
 
+pub extern "C" fn open(_: *mut GDALOpenInfo) -> *mut GDALDataset {
+    println!("Hello from open");
+    ptr::null_mut()
+}
+
+pub extern "C" fn identify(_: *mut GDALOpenInfo) -> i32 {
+    println!("Hello from identify");
+    0
+}
+
 #[no_mangle]
-pub extern "C" fn GDALRegister_My() {
+pub extern "C" fn GDALRegisterMe() {
+    println!("Hello from GDALRegisterMe");
     let mut driver = GDALDriver::new().within_box();
     unsafe {
         {
@@ -61,16 +74,24 @@ pub extern "C" fn GDALRegister_My() {
                 CStr::from_bytes_with_nul(b"YES\0").unwrap().as_ptr(),
                 ptr::null(),
             );
+            driver.as_mut().SetMetadataItem(
+                GDAL_DMD_LONGNAME.as_ptr() as _,
+                CStr::from_bytes_with_nul(b"Rust Raster Test Driver\0")
+                    .unwrap()
+                    .as_ptr(),
+                ptr::null(),
+            );
         }
+
+        ffi::set_driver_functions(
+            &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut()),
+            std::mem::transmute(&open),
+            std::mem::transmute(&identify),
+        );
 
         let driver_manager = Pin::new_unchecked(&mut *GetGDALDriverManager());
         driver_manager.RegisterDriver(Pin::<&mut GDALDriver>::into_inner_unchecked(
             driver.as_mut(),
         ));
-        ffi::set_driver_functions(
-            &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut()),
-            ptr::null_mut(),
-            ptr::null_mut(),
-        );
     }
 }
