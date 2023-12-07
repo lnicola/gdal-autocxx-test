@@ -14,3 +14,11 @@ inline void set_driver_functions(GDALDriver *driver, void *pfnOpen,
 inline char *gdal_open_info_get_filename(const GDALOpenInfo *openInfo) {
   return openInfo->pszFilename;
 }
+
+inline int gdal_open_info_get_header_bytes(const GDALOpenInfo *openInfo) {
+  return openInfo->nHeaderBytes;
+}
+
+inline unsigned char *gdal_open_info_get_header(const GDALOpenInfo *openInfo) {
+  return openInfo->pabyHeader;
+}

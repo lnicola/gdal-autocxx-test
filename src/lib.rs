@@ -2,6 +2,7 @@ use std::ffi::CStr;
 use std::mem;
 use std::pin::Pin;
 use std::ptr;
+use std::slice;
 
 use autocxx::prelude::*;
 use autocxx::subclass::*;
@@ -28,6 +29,8 @@ include_cpp! {
     generate!("upcast_driver")
     generate!("set_driver_functions")
     generate!("gdal_open_info_get_filename")
+    generate!("gdal_open_info_get_header_bytes")
+    generate!("gdal_open_info_get_header")
 }
 
 use ffi::*;
@@ -59,7 +62,11 @@ pub extern "C" fn identify(open_info: *mut GDALOpenInfo) -> c_int {
     println!("Hello from identify");
     let filename = unsafe { gdal_open_info_get_filename(open_info) };
     let filename = unsafe { CStr::from_ptr(filename) };
+    let header_bytes = unsafe { gdal_open_info_get_header_bytes(open_info).0 };
+    let header_ptr = unsafe { gdal_open_info_get_header(open_info) };
+    let header = unsafe { slice::from_raw_parts(header_ptr, header_bytes as usize) };
     println!("identify filename: {:?}", filename);
+    println!("header bytes: {:x?}", header);
     c_int::from(0)
 }
 
