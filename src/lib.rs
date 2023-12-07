@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::mem;
 use std::pin::Pin;
 use std::ptr;
 
@@ -58,10 +59,10 @@ pub extern "C" fn identify(_: *mut GDALOpenInfo) -> i32 {
 #[no_mangle]
 pub extern "C" fn GDALRegisterMe() {
     println!("Hello from GDALRegisterMe");
-    let mut driver = GDALDriver::new().within_box();
+    let mut driver = GDALDriver::new().within_unique_ptr();
     unsafe {
         {
-            let driver = driver.as_mut();
+            let driver = driver.as_mut().unwrap();
             let driver = Pin::<&mut GDALDriver>::into_inner_unchecked(driver);
             let driver = ffi::upcast_driver(&mut *driver);
             let driver = Pin::new_unchecked(&mut *driver);
@@ -69,12 +70,12 @@ pub extern "C" fn GDALRegisterMe() {
         }
 
         {
-            driver.as_mut().SetMetadataItem(
+            driver.as_mut().unwrap().SetMetadataItem(
                 GDAL_DCAP_RASTER.as_ptr() as _,
                 CStr::from_bytes_with_nul(b"YES\0").unwrap().as_ptr(),
                 ptr::null(),
             );
-            driver.as_mut().SetMetadataItem(
+            driver.as_mut().unwrap().SetMetadataItem(
                 GDAL_DMD_LONGNAME.as_ptr() as _,
                 CStr::from_bytes_with_nul(b"Rust Raster Test Driver\0")
                     .unwrap()
@@ -84,14 +85,12 @@ pub extern "C" fn GDALRegisterMe() {
         }
 
         ffi::set_driver_functions(
-            &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut()),
-            std::mem::transmute(&open),
-            std::mem::transmute(&identify),
+            &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut().unwrap()),
+            mem::transmute(&open),
+            mem::transmute(&identify),
         );
 
         let driver_manager = Pin::new_unchecked(&mut *GetGDALDriverManager());
-        driver_manager.RegisterDriver(Pin::<&mut GDALDriver>::into_inner_unchecked(
-            driver.as_mut(),
-        ));
+        driver_manager.RegisterDriver(driver.into_raw());
     }
 }
