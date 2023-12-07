@@ -27,6 +27,7 @@ include_cpp! {
 
     generate!("upcast_driver")
     generate!("set_driver_functions")
+    generate!("gdal_open_info_get_filename")
 }
 
 use ffi::*;
@@ -42,18 +43,24 @@ impl CppPeerConstructor<MyDatasetCpp> for MyDataset {
         &mut self,
         peer_holder: CppSubclassRustPeerHolder<Self>,
     ) -> UniquePtr<MyDatasetCpp> {
-        UniquePtr::emplace(unsafe { MyDatasetCpp::new(peer_holder) })
+        UniquePtr::emplace(MyDatasetCpp::new(peer_holder))
     }
 }
 
-pub extern "C" fn open(_: *mut GDALOpenInfo) -> *mut GDALDataset {
+pub extern "C" fn open(open_info: *mut GDALOpenInfo) -> *mut GDALDataset {
     println!("Hello from open");
+    let filename = unsafe { gdal_open_info_get_filename(open_info) };
+    let filename = unsafe { CStr::from_ptr(filename) };
+    println!("open filename: {:?}", filename);
     ptr::null_mut()
 }
 
-pub extern "C" fn identify(_: *mut GDALOpenInfo) -> i32 {
+pub extern "C" fn identify(open_info: *mut GDALOpenInfo) -> c_int {
     println!("Hello from identify");
-    0
+    let filename = unsafe { gdal_open_info_get_filename(open_info) };
+    let filename = unsafe { CStr::from_ptr(filename) };
+    println!("identify filename: {:?}", filename);
+    c_int::from(0)
 }
 
 #[no_mangle]
@@ -87,7 +94,7 @@ pub extern "C" fn GDALRegisterMe() {
         ffi::set_driver_functions(
             &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut().unwrap()),
             mem::transmute(open as extern "C" fn(*mut GDALOpenInfo) -> *mut GDALDataset),
-            mem::transmute(identify as extern "C" fn(*mut GDALOpenInfo) -> i32),
+            mem::transmute(identify as extern "C" fn(*mut GDALOpenInfo) -> c_int),
         );
 
         let driver_manager = Pin::new_unchecked(&mut *GetGDALDriverManager());
