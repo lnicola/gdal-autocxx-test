@@ -23,8 +23,10 @@ include_cpp! {
     generate!("GDAL_DMD_LONGNAME")
     generate!("GetGDALDriverManager")
     generate!("GDALOpenInfo")
+    generate!("GDALRasterBand")
 
     subclass!("GDALDataset", MyDataset)
+    subclass!("GDALRasterBand", MyRasterBand)
 
     generate!("upcast_driver")
     generate!("set_driver_functions")
@@ -50,12 +52,41 @@ impl CppPeerConstructor<MyDatasetCpp> for MyDataset {
     }
 }
 
+#[subclass]
+#[derive(Default)]
+pub struct MyRasterBand;
+
+impl GDALRasterBand_methods for MyRasterBand {
+    unsafe fn IReadBlock(
+        &mut self,
+        nBlockXOff: c_int,
+        nBlockYOff: c_int,
+        pData: *mut c_void,
+    ) -> CPLErr {
+        CPLErr::CE_Failure
+    }
+}
+
+impl CppPeerConstructor<MyRasterBandCpp> for MyRasterBand {
+    fn make_peer(
+        &mut self,
+        peer_holder: CppSubclassRustPeerHolder<Self>,
+    ) -> UniquePtr<MyRasterBandCpp> {
+        UniquePtr::emplace(MyRasterBandCpp::new(peer_holder))
+    }
+}
+
 pub extern "C" fn open(open_info: *mut GDALOpenInfo) -> *mut GDALDataset {
     println!("Hello from open");
     let filename = unsafe { gdal_open_info_get_filename(open_info) };
     let filename = unsafe { CStr::from_ptr(filename) };
     println!("open filename: {:?}", filename);
-    ptr::null_mut()
+
+    if identify(open_info).0 == 0 {
+        return ptr::null_mut();
+    }
+    let dataset = MyDataset::new_cpp_owned(MyDataset::default());
+    dataset.into_raw() as *mut GDALDataset
 }
 
 pub extern "C" fn identify(open_info: *mut GDALOpenInfo) -> c_int {
