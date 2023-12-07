@@ -23,7 +23,7 @@ include_cpp! {
     subclass!("GDALDataset", MyDataset)
 
     generate!("upcast_driver")
-    generate!("set_driver_pfnOpen")
+    generate!("set_driver_functions")
 }
 
 use ffi::*;
@@ -67,8 +67,9 @@ pub extern "C" fn GDALRegister_My() {
         driver_manager.RegisterDriver(Pin::<&mut GDALDriver>::into_inner_unchecked(
             driver.as_mut(),
         ));
-        ffi::set_driver_pfnOpen(
+        ffi::set_driver_functions(
             &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut()),
+            ptr::null_mut(),
             ptr::null_mut(),
         );
     }
