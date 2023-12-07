@@ -40,9 +40,9 @@ impl GDALDataset_methods for MyDataset {}
 impl CppPeerConstructor<MyDatasetCpp> for MyDataset {
     fn make_peer(
         &mut self,
-        _peer_holder: CppSubclassRustPeerHolder<Self>,
+        peer_holder: CppSubclassRustPeerHolder<Self>,
     ) -> UniquePtr<MyDatasetCpp> {
-        todo!()
+        UniquePtr::emplace(unsafe { MyDatasetCpp::new(peer_holder) })
     }
 }
 
