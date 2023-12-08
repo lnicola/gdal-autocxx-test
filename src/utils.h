@@ -5,8 +5,8 @@
 
 inline GDALMajorObject *upcast_driver(GDALDriver *driver) { return driver; }
 
-inline void set_driver_functions(GDALDriver *driver, void *pfnOpen,
-                                 void *pfnIdentify) {
+inline void gdal_driver_set_functions(GDALDriver *driver, void *pfnOpen,
+                                      void *pfnIdentify) {
   driver->pfnOpen = reinterpret_cast<GDALDataset *(*)(GDALOpenInfo *)>(pfnOpen);
   driver->pfnIdentify = reinterpret_cast<int (*)(GDALOpenInfo *)>(pfnIdentify);
 }

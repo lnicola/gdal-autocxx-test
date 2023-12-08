@@ -29,7 +29,7 @@ include_cpp! {
     subclass!("GDALRasterBand", MyRasterBand)
 
     generate!("upcast_driver")
-    generate!("set_driver_functions")
+    generate!("gdal_driver_set_functions")
     generate!("gdal_open_info_get_filename")
     generate!("gdal_open_info_get_header_bytes")
     generate!("gdal_open_info_get_header")
@@ -85,7 +85,17 @@ pub extern "C" fn open(open_info: *mut GDALOpenInfo) -> *mut GDALDataset {
     if identify(open_info).0 == 0 {
         return ptr::null_mut();
     }
-    let dataset = MyDataset::new_cpp_owned(MyDataset::default());
+    let mut dataset = MyDataset::new_cpp_owned(MyDataset::default());
+    {
+        let dataset = dataset.pin_mut();
+        let ds = dataset.As_GDALDataset_mut();
+
+        let rasterband = MyRasterBand::new_cpp_owned(MyRasterBand::default()).into_raw();
+        unsafe {
+            let band = mem::transmute::<_, *mut GDALRasterBand>(rasterband);
+            ds.SetBand(1.into(), band);
+        }
+    }
     dataset.into_raw() as *mut GDALDataset
 }
 
@@ -98,7 +108,7 @@ pub extern "C" fn identify(open_info: *mut GDALOpenInfo) -> c_int {
     let header = unsafe { slice::from_raw_parts(header_ptr, header_bytes as usize) };
     println!("identify filename: {:?}", filename);
     println!("header bytes: {:x?}", header);
-    c_int::from(0)
+    c_int::from(1)
 }
 
 #[no_mangle]
@@ -129,7 +139,7 @@ pub extern "C" fn GDALRegisterMe() {
             );
         }
 
-        ffi::set_driver_functions(
+        ffi::gdal_driver_set_functions(
             &mut *Pin::<&mut GDALDriver>::into_inner_unchecked(driver.as_mut().unwrap()),
             mem::transmute(open as extern "C" fn(*mut GDALOpenInfo) -> *mut GDALDataset),
             mem::transmute(identify as extern "C" fn(*mut GDALOpenInfo) -> c_int),
